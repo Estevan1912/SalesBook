@@ -10,14 +10,15 @@ import { PageHeader } from "@/components/common";
 import { useToast } from "@/hooks/use-toast";
 import type { Settings } from "@shared/schema";
 import { TEMPLATE_VARS, useSaveSettings, useSettings } from "@/lib/quote";
-
+import { BackupCard } from "@/components/backup";
 
 export default function Setup() {
   const { data, isLoading } = useSettings();
   const save = useSaveSettings();
   const { toast } = useToast();
   const [s, setS] = useState<Settings | null>(null);
-  useEffect(() => { if (data && !s) setS(structuredClone(data)); }, [data]);
+  // Also picks up a restored backup's name and templates.
+  useEffect(() => { if (data) setS(structuredClone(data)); }, [data]);
   if (isLoading || !s) return <div className="space-y-4 max-w-4xl"><Skeleton className="h-8 w-40" /><Skeleton className="h-64" /></div>;
 
   const dirty = JSON.stringify(s) !== JSON.stringify(data);
@@ -25,9 +26,11 @@ export default function Setup() {
 
   return (
     <div className="max-w-4xl pb-20">
-      <PageHeader title="Setup" subtitle="Your name and your text templates.">
+      <PageHeader title="Setup" subtitle="Backups, your name and your text templates.">
         <Button onClick={onSave} disabled={!dirty || save.isPending} data-testid="button-save-setup">{save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}</Button>
       </PageHeader>
+
+      <BackupCard />
 
       <Card className="p-5 mb-6">
         <h2 className="text-sm font-bold mb-3">You</h2>

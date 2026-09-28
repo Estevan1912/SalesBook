@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS, insertContactSchema, insertTaskSchema, insertActivitySchema,
   type Contact, type Task, type Activity, type Settings,
 } from "@shared/schema";
+import { todayStr } from "@/lib/crm";
 
 const KEY = "salesbook";
 
@@ -150,4 +151,65 @@ export function downloadContactsCsv() {
   a.download = "sales-book-customers.csv";
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ---- Backup / restore ----
+// A backup is the whole store (customers, callbacks, call log, settings) in one JSON file.
+
+const LAST_BACKUP_KEY = "salesbook-last-backup";
+type BackupFile = { app: "salesbook"; version: 1; exportedAt: string; data: Store };
+export type BackupSummary = { exportedAt: string; contacts: number; tasks: number; activities: number };
+
+export function lastBackupAt(): string | null {
+  try { return localStorage.getItem(LAST_BACKUP_KEY); } catch { return null; }
+}
+
+export function hasData() {
+  const s = load();
+  return s.contacts.length + s.tasks.length + s.activities.length > 0;
+}
+
+/** Saves a backup file: the share sheet on phones (so it can go to Files, iCloud or email), a download elsewhere. */
+export async function saveBackup(): Promise<"saved" | "cancelled"> {
+  const exportedAt = new Date().toISOString();
+  const body: BackupFile = { app: "salesbook", version: 1, exportedAt, data: load() };
+  const name = `sales-book-backup-${todayStr()}.json`;
+  const file = new File([JSON.stringify(body)], name, { type: "application/json" });
+
+  const phone = window.matchMedia("(pointer: coarse)").matches;
+  if (phone && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Sales Book backup" });
+    } catch (e: any) {
+      if (e?.name === "AbortError") return "cancelled";
+      throw e;
+    }
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  localStorage.setItem(LAST_BACKUP_KEY, exportedAt);
+  return "saved";
+}
+
+/** Reads and checks a backup file without changing anything. Throws a readable message if it isn't one. */
+export function readBackup(text: string): { summary: BackupSummary; data: Store } {
+  let f: any;
+  try { f = JSON.parse(text); } catch { throw new Error("That file isn't a Sales Book backup."); }
+  const d = f?.data;
+  if (f?.app !== "salesbook" || !d || !Array.isArray(d.contacts) || !Array.isArray(d.tasks) || !Array.isArray(d.activities)) {
+    throw new Error("That file isn't a Sales Book backup.");
+  }
+  const data: Store = { contacts: d.contacts, tasks: d.tasks, activities: d.activities, settings: d.settings ?? {}, nextId: 1 };
+  const maxId = Math.max(0, ...[...data.contacts, ...data.tasks, ...data.activities].map((x) => Number(x.id) || 0));
+  data.nextId = Math.max(Number(d.nextId) || 0, maxId + 1);
+  return { summary: { exportedAt: f.exportedAt, contacts: data.contacts.length, tasks: data.tasks.length, activities: data.activities.length }, data };
+}
+
+/** Replaces everything in this browser with the backup. */
+export function restoreBackup(data: Store) {
+  save(data);
 }

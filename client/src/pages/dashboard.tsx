@@ -2,9 +2,10 @@ import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react";
+import { CheckCircle2, ArrowRight, AlertCircle, HardDriveDownload } from "lucide-react";
 import { Avatar, CallRow, EmptyState, PageHeader, useUI } from "@/components/common";
-import { dueDiff, isSold, money, perMo, useContacts, useTasks } from "@/lib/crm";
+import { daysSince, dueDiff, isSold, money, perMo, useContacts, useTasks } from "@/lib/crm";
+import { hasData, lastBackupAt } from "@/lib/localdb";
 import { format } from "date-fns";
 
 function Kpi({ label, value, hint, testid }: { label: string; value: string; hint?: string; testid: string }) {
@@ -38,12 +39,22 @@ export default function Dashboard() {
   const sold = contacts.filter((c) => isSold(c.status));
   const lost = contacts.filter((c) => c.status === "lost");
   const closeRate = sold.length + lost.length ? Math.round((sold.length / (sold.length + lost.length)) * 100) : 0;
+  const lastBackup = lastBackupAt();
+  const backupDue = hasData() && daysSince(lastBackup) > 7;
   const withCallback = new Set(open.map((t) => t.contactId));
   const noCallback = leads.filter((c) => !withCallback.has(c.id));
 
   return (
     <div>
       <PageHeader title="Today" subtitle={`${format(new Date(), "EEEE, MMMM d")} · ${dueNow.length ? `${dueNow.length} call${dueNow.length > 1 ? "s" : ""} to make` : "No calls due"}`} />
+
+      {backupDue && (
+        <Link href="/setup" className="flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 mb-6 text-sm hover:bg-primary/10" data-testid="banner-backup">
+          <HardDriveDownload className="h-4 w-4 text-primary shrink-0" />
+          <span className="flex-1">{lastBackup ? `Your last backup was ${daysSince(lastBackup)} days ago.` : "You haven't backed up your book yet."} Your data only lives in this browser.</span>
+          <span className="font-medium whitespace-nowrap">Back up <ArrowRight className="inline h-3.5 w-3.5" /></span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Kpi label="Calls due" value={String(dueNow.length)} hint={overdue.length ? `${overdue.length} overdue` : "Nothing overdue"} testid="kpi-due" />
