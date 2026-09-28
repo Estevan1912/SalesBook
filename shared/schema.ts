@@ -1,0 +1,106 @@
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const STATUSES = ["lead", "checkup", "closed", "lost"] as const;
+/** Both "checkup" and "closed" are closed sales — checkup means you still owe them a follow-up call. */
+export const SOLD_STATUSES = ["checkup", "closed"] as const;
+export const isSold = (s: string) => s === "checkup" || s === "closed";
+export const PRODUCTS = [
+  "New account", "Upgrade", "Switch / port-in", "Add a line", "5G Home Internet", "Fios",
+  "Tablet / watch", "Accessories", "Protection plan", "Other",
+] as const;
+export const CARRIERS = ["Verizon", "AT&T", "T-Mobile", "Spectrum", "Xfinity", "Cricket", "Metro", "Visible", "Other"] as const;
+export const CALL_REASONS = [
+  "Follow up on quote", "Check-in after sale", "Trade-in / rebate status", "Upgrade eligible",
+  "Bill review", "Promo ending", "Referral ask", "Other",
+] as const;
+export const DEVICE_GROUPS: { label: string; items: string[] }[] = [
+  { label: "Apple iPhone", items: ["iPhone 18 Pro Max", "iPhone 18 Pro", "iPhone Duo", "iPhone Air", "iPhone 17 Pro Max", "iPhone 17 Pro", "iPhone 17", "iPhone 17e", "iPhone 16", "iPhone 16e", "iPhone 15"] },
+  { label: "Samsung Galaxy", items: ["Galaxy S26 Ultra", "Galaxy S26+", "Galaxy S26", "Galaxy S26 FE", "Galaxy Z Fold8 Ultra", "Galaxy Z Fold8", "Galaxy Z Flip8", "Galaxy S25", "Galaxy A36 5G", "Galaxy A17 5G", "Galaxy A16 5G"] },
+  { label: "Google Pixel", items: ["Pixel 11 Pro Fold", "Pixel 11 Pro XL", "Pixel 11 Pro", "Pixel 11", "Pixel 10a"] },
+  { label: "Keep own phone", items: ["BYOD"] },
+  { label: "Other devices", items: ["Apple Watch", "Galaxy Watch", "iPad", "Galaxy Tab", "Hotspot / Jetpack", "Other phone"] },
+];
+export const PLANS = [
+  "Unlimited Welcome", "Unlimited Plus", "Unlimited Ultimate", "Simplicity Plan", "Watch / tablet plan", "Prepaid", "Keeping current plan", "Other",
+] as const;
+export type LineItem = { device: string; plan: string; who: string; planPrice?: number; devicePay?: number };
+/** Plans whose per-line price drops as you add phone lines. */
+export const PHONE_PLANS = ["Unlimited Welcome", "Unlimited Plus", "Unlimited Ultimate", "Simplicity Plan"];
+
+export type Template = { id: string; name: string; body: string };
+export type Settings = {
+  yourName: string;
+  /** per-line monthly price (with AutoPay) by number of phone lines: [1, 2, 3, 4, 5+] */
+  prices: Record<string, number[]>;
+  templates: Template[];
+};
+export const DEFAULT_SETTINGS: Settings = {
+  yourName: "",
+  prices: {
+    "Unlimited Welcome": [55, 50, 40, 30, 30],
+    "Unlimited Plus": [70, 65, 55, 45, 45],
+    "Unlimited Ultimate": [80, 75, 70, 60, 60],
+    "Simplicity Plan": [45, 45, 45, 45, 45],
+    "Watch / tablet plan": [10, 10, 10, 10, 10],
+    "Prepaid": [0, 0, 0, 0, 0],
+    "Keeping current plan": [0, 0, 0, 0, 0],
+    "Other": [0, 0, 0, 0, 0],
+  },
+  templates: [
+    { id: "t1", name: "Quote follow-up", body: "Hi {first}, it's {me} from Verizon. Following up on the quote we put together: {lines} for {monthly}/mo. Any questions? I can get you set up whenever you're ready." },
+    { id: "t2", name: "Missed your call", body: "Hi {first}, it's {me} from Verizon. Tried giving you a call. Text or call me back when you get a chance." },
+    { id: "t3", name: "Deal still available", body: "Hi {first}, {me} from Verizon here. The deal we talked about ({device} on {plan}, {monthly}/mo) is still available. Want me to hold it for you?" },
+    { id: "t4", name: "Check-in after sale", body: "Hi {first}, it's {me} from Verizon. Just checking in to make sure everything's working great with your new service. Anything I can help with?" },
+    { id: "t5", name: "Referral ask", body: "Hi {first}, thanks again for coming in! If any friends or family are looking to switch, send them my way and ask for {me}." },
+  ],
+};
+export const OUTCOMES = ["talked", "no answer", "voicemail", "texted", "note"] as const;
+
+export const contacts = sqliteTable("contacts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull().default(""),
+  email: text("email").notNull().default(""),
+  status: text("status").notNull().default("lead"),
+  product: text("product").notNull().default("New account"),
+  details: text("details").notNull().default(""),
+  lines: integer("lines").notNull().default(1),
+  /** JSON array of LineItem: the phone and plan for each line */
+  lineItems: text("line_items").notNull().default("[]"),
+  monthlyQuote: real("monthly_quote").notNull().default(0),
+  /** monthly credits / discounts applied to the quote (switcher credit, promo) */
+  credits: real("credits").notNull().default(0),
+  carrier: text("carrier").notNull().default(""),
+  saleDate: text("sale_date"),
+  notes: text("notes").notNull().default(""),
+  lastContacted: text("last_contacted"),
+  createdAt: text("created_at").notNull(),
+});
+export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true });
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type Contact = typeof contacts.$inferSelect;
+
+export const tasks = sqliteTable("tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  contactId: integer("contact_id"),
+  dueDate: text("due_date"),
+  done: integer("done", { mode: "boolean" }).notNull().default(false),
+  notes: text("notes").notNull().default(""),
+});
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+export const activities = sqliteTable("activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  contactId: integer("contact_id").notNull(),
+  type: text("type").notNull().default("note"),
+  body: text("body").notNull().default(""),
+  date: text("date").notNull(),
+});
+export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, date: true });
+export type InsertActivity = z.infer<typeof insertActivitySchema>;
+export type Activity = typeof activities.$inferSelect;
