@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { pgTable, serial, text, integer, doublePrecision, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -58,8 +58,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 export const OUTCOMES = ["talked", "no answer", "voicemail", "texted", "note"] as const;
 
-export const contacts = sqliteTable("contacts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   phone: text("phone").notNull().default(""),
   email: text("email").notNull().default(""),
@@ -69,9 +69,9 @@ export const contacts = sqliteTable("contacts", {
   lines: integer("lines").notNull().default(1),
   /** JSON array of LineItem: the phone and plan for each line */
   lineItems: text("line_items").notNull().default("[]"),
-  monthlyQuote: real("monthly_quote").notNull().default(0),
+  monthlyQuote: doublePrecision("monthly_quote").notNull().default(0),
   /** monthly credits / discounts applied to the quote (switcher credit, promo) */
-  credits: real("credits").notNull().default(0),
+  credits: doublePrecision("credits").notNull().default(0),
   carrier: text("carrier").notNull().default(""),
   saleDate: text("sale_date"),
   notes: text("notes").notNull().default(""),
@@ -82,20 +82,20 @@ export const insertContactSchema = createInsertSchema(contacts).omit({ id: true,
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Contact = typeof contacts.$inferSelect;
 
-export const tasks = sqliteTable("tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
   title: text("title").notNull(),
   contactId: integer("contact_id"),
   dueDate: text("due_date"),
-  done: integer("done", { mode: "boolean" }).notNull().default(false),
+  done: boolean("done").notNull().default(false),
   notes: text("notes").notNull().default(""),
 });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
-export const activities = sqliteTable("activities", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const activities = pgTable("activities", {
+  id: serial("id").primaryKey(),
   contactId: integer("contact_id").notNull(),
   type: text("type").notNull().default("note"),
   body: text("body").notNull().default(""),
