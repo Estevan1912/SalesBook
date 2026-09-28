@@ -10,7 +10,7 @@ import { Search, Download, Users, Phone } from "lucide-react";
 import { Avatar, EmptyState, PageHeader, StatusBadge, useUI } from "@/components/common";
 import { dueLabel, linesSummary, perMo, telHref, useContacts, useTasks, dueDiff } from "@/lib/crm";
 import { PRODUCTS } from "@shared/schema";
-import { API_BASE } from "@/lib/queryClient";
+import { downloadContactsCsv } from "@/lib/localdb";
 import { cn } from "@/lib/utils";
 
 type TabDef = [value: string, label: string, statuses: string[]];
@@ -62,8 +62,8 @@ export function CustomerList({ tabs, title, subtitle, statuses, emptyTitle = "No
   return (
     <div>
       {title && <PageHeader title={title} subtitle={subtitle}>
-        <Button variant="outline" size="sm" asChild data-testid="button-export">
-          <a href={`${API_BASE}/api/contacts-export.csv`} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1" />Export CSV</a>
+        <Button variant="outline" size="sm" onClick={downloadContactsCsv} data-testid="button-export">
+          <Download className="h-4 w-4 mr-1" />Export CSV
         </Button>
       </PageHeader>}
 

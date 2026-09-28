@@ -1,6 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-
-export const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
+import { localApi } from "./localdb";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -14,11 +13,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  const res = localApi(method, url, data);
 
   await throwIfResNotOk(res);
   return res;
@@ -30,7 +25,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE}${queryKey.join("/")}`);
+    const res = localApi("GET", queryKey.join("/"));
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

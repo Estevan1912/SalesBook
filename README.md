@@ -2,32 +2,30 @@
 
 A personal sales book for tracking Verizon leads, quotes (phones + plans per line), callbacks, and closed customers.
 
-## Deploy (Vercel)
-Pushing to `main` deploys to Vercel. `vercel.json` builds the front end into `dist/public` and sends
-every `/api/*` request to one serverless function (`api/index.ts`) that runs the Express app.
+## How it works
+Like the commission tracker and budget apps, Sales Book is a static site: there is no server or database.
+Everything you enter is saved in this browser's localStorage (key `salesbook`), so it stays on your device
+and isn't reachable by anyone else with the link. It does **not** sync between devices, and clearing the
+browser's site data erases it; use **Export CSV** on the Customers tab for a backup.
 
-Data lives in Neon Postgres. In Vercel -> the project -> Storage, create a Neon database and connect it;
-that sets `DATABASE_URL`. Tables are created on the first request, and demo customers are added if the
-database is empty (remove `seedIfEmpty()` in `server/storage.ts` if you don't want them).
+Pushing to `main` deploys to Vercel (`vercel.json` publishes the Vite build in `dist/public`).
 
 ## Run it locally
-Requires Node.js 20+. Copy `.env.example` to `.env` and set `DATABASE_URL` (use a separate Neon branch
-if you don't want to touch your live data).
+Requires Node.js 20+.
 
 ```bash
 npm install
-npm run dev          # http://localhost:5000
+npm run dev          # local dev server
+npm run build        # production build into dist/public
 ```
 
 ## Where things live
 - `shared/schema.ts` — data model, phone list, plans, default plan prices and text templates
-- `server/storage.ts` — Postgres tables + demo seed
-- `server/app.ts` — Express app shared by the local server (`server/index.ts`) and the Vercel function (`api/index.ts`)
-- `server/routes.ts` — REST API (`/api/contacts`, `/api/tasks`, `/api/activities`, `/api/settings`, CSV export)
+- `client/src/lib/localdb.ts` — localStorage store; answers the app's `/api/...` calls in the browser, plus CSV export
 - `client/src/App.tsx` — top tabs and routes
 - `client/src/pages/` — Today (`dashboard`), Leads (`leads`, `tasks`), Customers (`contacts`), customer page (`contact-detail`), Setup (`setup`)
 - `client/src/components/dialogs.tsx` — New quote / quote builder and callback forms
 - `client/src/components/quick.tsx` — text-template dialog
 - `client/src/lib/quote.ts` — quote pricing, copy-quote text, template filling
 
-Stack: React + Vite + Tailwind + shadcn/ui on the front end, Express + Drizzle + Neon Postgres on the back end.
+Stack: React + Vite + Tailwind + shadcn/ui, data in localStorage.
