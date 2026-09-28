@@ -14,10 +14,8 @@ import { downloadContactsCsv } from "@/lib/localdb";
 import { cn } from "@/lib/utils";
 
 type TabDef = [value: string, label: string, statuses: string[]];
-const CUSTOMER_TABS: TabDef[] = [["all", "All", ["checkup", "closed"]], ["checkup", "Check up", ["checkup"]], ["closed", "Closed", ["closed"]]];
-
 export default function Customers() {
-  return <CustomerList tabs={CUSTOMER_TABS} title="Customers" subtitle="Accounts you've closed. Check up = still following up. Closed = finished." />;
+  return <CustomerList statuses={["closed"]} title="Customers" subtitle="Accounts you've closed." />;
 }
 
 export function CustomerList({ tabs, title, subtitle, statuses, emptyTitle = "No one here yet", emptyBody = "Add a new quote to start your book." }: {

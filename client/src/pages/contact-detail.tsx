@@ -12,11 +12,11 @@ import { ArrowLeft, Phone, MessageSquare, Mail, Pencil, Trash2, Plus, X, PhoneCa
 import { Avatar, CallRow, EmptyState, useUI } from "@/components/common";
 import { StatusToggle } from "@/components/dialogs";
 import {
-  OUTCOME_LABEL, ago, closeQuoteFollowups, isSold, parseLines, perMo, scheduleSaleCheckins, shortDate, telHref, todayStr, useActivities, useAddActivity,
+  OUTCOME_LABEL, ago, closeQuoteFollowups, isSold, parseLines, perMo, shortDate, telHref, todayStr, useActivities, useAddActivity,
   useContacts, useDeleteActivity, useDeleteContact, useSaveContact, useTasks,
 } from "@/lib/crm";
 import { useToast } from "@/hooks/use-toast";
-import { copyText, priceQuote, quoteText, useSettings } from "@/lib/quote";
+import { copyText, quoteText, useSettings } from "@/lib/quote";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -51,13 +51,10 @@ export default function CustomerDetail() {
     const becameSold = isSold(s) && !isSold(c.status);
     save.mutate({ id: cid, data: { status: s, saleDate: isSold(s) ? (c.saleDate || todayStr()) : null } }, {
       onSuccess: async () => {
-        if (becameSold && s === "checkup") {
-          await scheduleSaleCheckins(cid);
-          toast({ title: "Sold — added to Check up", description: "Check-in calls scheduled for 3 and 30 days out." });
-        } else if (becameSold) {
+        if (becameSold) {
           await closeQuoteFollowups(cid);
           toast({ title: "Sold — marked Closed" });
-        } else toast({ title: `Moved to ${s === "lead" ? "Leads" : s === "checkup" ? "Check up" : s === "closed" ? "Closed" : "Lost"}` });
+        } else toast({ title: `Moved to ${s === "lead" ? "Leads" : s === "closed" ? "Closed" : "Lost"}` });
       },
     });
   };
@@ -65,7 +62,6 @@ export default function CustomerDetail() {
     const ok = await copyText(quoteText(c, settings));
     toast({ title: ok ? "Quote copied" : "Couldn't copy", description: ok ? "Paste it into a text or email." : undefined });
   };
-  const priced = priceQuote(parseLines(c), c.credits ?? 0, settings);
   const log = (type: string, body = note.trim()) => {
     if (type === "note" && !body) return;
     addAct.mutate({ contactId: cid, type, body }, { onSuccess: () => { setNote(""); toast({ title: OUTCOME_LABEL[type], description: "Added to call log" }); } });
@@ -126,22 +122,17 @@ export default function CustomerDetail() {
             <div className="text-sm mt-1 font-medium">{c.product}{c.lines ? ` · ${c.lines} line${c.lines > 1 ? "s" : ""}` : ""}</div>
             {parseLines(c).length > 0 && (
               <ol className="mt-3 space-y-1.5" data-testid="list-lines">
-                {priced.lines.map((l, i) => (
+                {parseLines(c).map((l, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm rounded-md bg-muted/50 px-2.5 py-2">
                     <span className="text-xs text-muted-foreground tabular w-4 pt-0.5">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="font-medium">{l.device === "BYOD" ? "BYOD · own phone" : l.device || "No phone picked"}</div>
                       <div className="text-xs text-muted-foreground">{l.plan || "No plan"}{l.who ? ` · ${l.who}` : ""}</div>
                     </div>
-                    {l.total > 0 && <div className="text-xs tabular text-right text-muted-foreground whitespace-nowrap pt-0.5">
-                      <div className="font-medium text-foreground">{perMo(l.total)}</div>
-                      {l.devicePay > 0 && <div>{perMo(l.planPrice)} + {perMo(l.devicePay)}</div>}
-                    </div>}
                   </li>
                 ))}
               </ol>
             )}
-            {priced.credits > 0 && <div className="mt-2 flex justify-between text-sm"><span className="text-muted-foreground">Credits</span><span className="tabular">−{perMo(priced.credits)}</span></div>}
             {c.details && <p className="text-sm text-muted-foreground mt-3 whitespace-pre-wrap">{c.details}</p>}
             <dl className="grid grid-cols-2 gap-3 text-sm mt-4 pt-4 border-t">
               <div><dt className="text-xs text-muted-foreground">Coming from</dt><dd className="mt-0.5">{c.carrier || "—"}</dd></div>
@@ -160,7 +151,7 @@ export default function CustomerDetail() {
               <Button size="sm" variant="ghost" onClick={() => newCall(cid)} data-testid="button-add-callback"><Plus className="h-4 w-4 mr-1" />Schedule</Button>
             </div>
             {mine.length === 0 ? (
-              <EmptyState icon={PhoneCall} title="No callbacks scheduled" body={c.status === "lead" ? "Set a date to follow up on the quote." : c.status === "closed" ? "They're closed out. Schedule a call if something comes up." : "Schedule a check-in to keep in touch."}
+              <EmptyState icon={PhoneCall} title="No callbacks scheduled" body={c.status === "lead" ? "Set a date to follow up on the quote." : c.status === "closed" ? "They're closed out. Schedule a call if something comes up." : "Schedule a call if you want to try them again."}
                 action={<Button size="sm" variant="outline" onClick={() => newCall(cid)} data-testid="button-empty-callback">Schedule a callback</Button>} />
             ) : (
               <div className="divide-y">

@@ -2,10 +2,9 @@ import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, ArrowRight, AlertCircle, Trophy } from "lucide-react";
+import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react";
 import { Avatar, CallRow, EmptyState, PageHeader, useUI } from "@/components/common";
-import { dueDiff, dueLabel, isSold, money, perMo, useContacts, useSaveContact, useTasks } from "@/lib/crm";
-import { useToast } from "@/hooks/use-toast";
+import { dueDiff, isSold, money, perMo, useContacts, useTasks } from "@/lib/crm";
 import { format } from "date-fns";
 
 function Kpi({ label, value, hint, testid }: { label: string; value: string; hint?: string; testid: string }) {
@@ -22,9 +21,6 @@ export default function Dashboard() {
   const { data: contacts, isLoading } = useContacts();
   const { data: tasks = [] } = useTasks();
   const { newCall } = useUI();
-  const saveContact = useSaveContact();
-  const { toast } = useToast();
-  const closeOut = (id: number) => saveContact.mutate({ id, data: { status: "closed" } }, { onSuccess: (c: any) => toast({ title: "Moved to Closed", description: c?.name }) });
   const byId = new Map((contacts ?? []).map((c) => [c.id, c]));
 
   if (isLoading || !contacts) {
@@ -40,12 +36,8 @@ export default function Dashboard() {
   const monthKey = format(new Date(), "yyyy-MM");
   const soldMonth = contacts.filter((c) => isSold(c.status) && c.saleDate?.startsWith(monthKey));
   const sold = contacts.filter((c) => isSold(c.status));
-  const checkups = contacts.filter((c) => c.status === "checkup").sort((a, b) => (nextCall(a.id) ?? "9999").localeCompare(nextCall(b.id) ?? "9999"));
   const lost = contacts.filter((c) => c.status === "lost");
   const closeRate = sold.length + lost.length ? Math.round((sold.length / (sold.length + lost.length)) * 100) : 0;
-  function nextCall(id: number) {
-    return open.filter((t) => t.contactId === id && t.dueDate).map((t) => t.dueDate!).sort()[0];
-  }
   const withCallback = new Set(open.map((t) => t.contactId));
   const noCallback = leads.filter((c) => !withCallback.has(c.id));
 
@@ -96,31 +88,6 @@ export default function Dashboard() {
                     <Button size="sm" variant="ghost" onClick={() => newCall(c.id)} data-testid={`button-schedule-${c.id}`}>Schedule</Button>
                   </div>
                 ))}
-              </div>
-            )}
-          </Card>
-
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-bold flex items-center gap-2"><Trophy className="h-4 w-4 text-sky-600" />Check-up pile</h2>
-              <Link href="/customers?s=checkup" className="text-xs text-muted-foreground hover:text-foreground" data-testid="link-checkups">{checkups.length} sold</Link>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">Sold customers you still need to touch base with. Mark them Closed when you're done.</p>
-            {checkups.length === 0 ? <div className="text-sm text-muted-foreground py-3">No one waiting on a check-up.</div> : (
-              <div className="space-y-1">
-                {checkups.map((c) => {
-                  const nc = nextCall(c.id);
-                  return (
-                    <div key={c.id} className="flex items-center gap-3 py-1.5">
-                      <Avatar contact={c} size="sm" />
-                      <Link href={`/customers/${c.id}`} className="min-w-0 flex-1 hover:underline" data-testid={`link-checkup-${c.id}`}>
-                        <div className="text-sm font-medium truncate">{c.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">{nc ? `Call ${dueLabel(nc).toLowerCase()}` : "No call set"} · {c.product}</div>
-                      </Link>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => closeOut(c.id)} data-testid={`button-close-${c.id}`}>Close out</Button>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </Card>

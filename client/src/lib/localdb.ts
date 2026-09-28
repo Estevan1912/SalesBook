@@ -19,7 +19,12 @@ type Store = {
 function load(): Store {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const s: Store = JSON.parse(raw);
+      // "Check up" was removed as a status; those customers were already sold.
+      s.contacts.forEach((c) => { if ((c.status as string) === "checkup") c.status = "closed"; });
+      return s;
+    }
   } catch {}
   return { contacts: [], tasks: [], activities: [], settings: {}, nextId: 1 };
 }
@@ -29,9 +34,7 @@ function save(s: Store) {
 }
 
 function getSettings(s: Store): Settings {
-  const out: any = { ...DEFAULT_SETTINGS, ...s.settings };
-  out.prices = { ...DEFAULT_SETTINGS.prices, ...(s.settings.prices ?? {}) };
-  return out;
+  return { yourName: s.settings.yourName ?? DEFAULT_SETTINGS.yourName, templates: s.settings.templates ?? DEFAULT_SETTINGS.templates };
 }
 
 const json = (body: unknown, status = 200) =>
@@ -139,7 +142,7 @@ const defaults = {
 /** Downloads all contacts as a CSV file (replaces the old /api/contacts-export.csv route). */
 export function downloadContactsCsv() {
   const rows = load().contacts.sort((a, b) => b.id - a.id);
-  const cols = ["name","phone","email","status","product","details","lines","lineItems","monthlyQuote","credits","carrier","saleDate","notes","lastContacted"] as const;
+  const cols = ["name","phone","email","status","product","details","lines","lineItems","monthlyQuote","carrier","saleDate","notes","lastContacted"] as const;
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
   const a = document.createElement("a");

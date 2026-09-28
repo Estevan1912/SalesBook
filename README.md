@@ -20,12 +20,12 @@ npm run build        # production build into dist/public
 ```
 
 ## Where things live
-- `shared/schema.ts` — data model, phone list, plans, default plan prices and text templates
+- `shared/schema.ts` — data model, phone list, plans and default text templates
 - `client/src/lib/localdb.ts` — localStorage store; answers the app's `/api/...` calls in the browser, plus CSV export
 - `client/src/App.tsx` — top tabs and routes
 - `client/src/pages/` — Today (`dashboard`), Leads (`leads`, `tasks`), Customers (`contacts`), customer page (`contact-detail`), Setup (`setup`)
 - `client/src/components/dialogs.tsx` — New quote / quote builder and callback forms
 - `client/src/components/quick.tsx` — text-template dialog
-- `client/src/lib/quote.ts` — quote pricing, copy-quote text, template filling
+- `client/src/lib/quote.ts` — copy-quote text, template filling
 
 Stack: React + Vite + Tailwind + shadcn/ui, data in localStorage.

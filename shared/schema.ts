@@ -2,10 +2,8 @@ import { pgTable, serial, text, integer, doublePrecision, boolean } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const STATUSES = ["lead", "checkup", "closed", "lost"] as const;
-/** Both "checkup" and "closed" are closed sales — checkup means you still owe them a follow-up call. */
-export const SOLD_STATUSES = ["checkup", "closed"] as const;
-export const isSold = (s: string) => s === "checkup" || s === "closed";
+export const STATUSES = ["lead", "closed", "lost"] as const;
+export const isSold = (s: string) => s === "closed";
 export const PRODUCTS = [
   "New account", "Upgrade", "Switch / port-in", "Add a line", "5G Home Internet", "Fios",
   "Tablet / watch", "Accessories", "Protection plan", "Other",
@@ -25,29 +23,15 @@ export const DEVICE_GROUPS: { label: string; items: string[] }[] = [
 export const PLANS = [
   "Unlimited Welcome", "Unlimited Plus", "Unlimited Ultimate", "Simplicity Plan", "Watch / tablet plan", "Prepaid", "Keeping current plan", "Other",
 ] as const;
-export type LineItem = { device: string; plan: string; who: string; planPrice?: number; devicePay?: number };
-/** Plans whose per-line price drops as you add phone lines. */
-export const PHONE_PLANS = ["Unlimited Welcome", "Unlimited Plus", "Unlimited Ultimate", "Simplicity Plan"];
+export type LineItem = { device: string; plan: string; who: string };
 
 export type Template = { id: string; name: string; body: string };
 export type Settings = {
   yourName: string;
-  /** per-line monthly price (with AutoPay) by number of phone lines: [1, 2, 3, 4, 5+] */
-  prices: Record<string, number[]>;
   templates: Template[];
 };
 export const DEFAULT_SETTINGS: Settings = {
   yourName: "",
-  prices: {
-    "Unlimited Welcome": [55, 50, 40, 30, 30],
-    "Unlimited Plus": [70, 65, 55, 45, 45],
-    "Unlimited Ultimate": [80, 75, 70, 60, 60],
-    "Simplicity Plan": [45, 45, 45, 45, 45],
-    "Watch / tablet plan": [10, 10, 10, 10, 10],
-    "Prepaid": [0, 0, 0, 0, 0],
-    "Keeping current plan": [0, 0, 0, 0, 0],
-    "Other": [0, 0, 0, 0, 0],
-  },
   templates: [
     { id: "t1", name: "Quote follow-up", body: "Hi {first}, it's {me} from Verizon. Following up on the quote we put together: {lines} for {monthly}/mo. Any questions? I can get you set up whenever you're ready." },
     { id: "t2", name: "Missed your call", body: "Hi {first}, it's {me} from Verizon. Tried giving you a call. Text or call me back when you get a chance." },
@@ -70,7 +54,7 @@ export const contacts = pgTable("contacts", {
   /** JSON array of LineItem: the phone and plan for each line */
   lineItems: text("line_items").notNull().default("[]"),
   monthlyQuote: doublePrecision("monthly_quote").notNull().default(0),
-  /** monthly credits / discounts applied to the quote (switcher credit, promo) */
+  /** no longer shown; kept so older saved customers still load */
   credits: doublePrecision("credits").notNull().default(0),
   carrier: text("carrier").notNull().default(""),
   saleDate: text("sale_date"),

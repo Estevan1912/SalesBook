@@ -6,10 +6,9 @@ import { format, differenceInCalendarDays, parseISO, formatDistanceToNowStrict, 
 
 export type { Contact, Task, Activity, LineItem };
 
-export const STATUS_LABEL: Record<string, string> = { lead: "Lead", checkup: "Check up", closed: "Closed", lost: "Lost" };
+export const STATUS_LABEL: Record<string, string> = { lead: "Lead", closed: "Closed", lost: "Lost" };
 export const STATUS_STYLE: Record<string, string> = {
   lead: "bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300",
-  checkup: "bg-sky-100 text-sky-900 dark:bg-sky-500/15 dark:text-sky-300",
   closed: "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-300",
   lost: "bg-muted text-muted-foreground",
 };
@@ -122,18 +121,11 @@ export function useDeleteActivity() {
   });
 }
 
-/** When a customer becomes Sold: schedule a 3-day and 30-day check-in call. */
 /** They bought — any open "follow up on quote" calls are done. */
 export async function closeQuoteFollowups(contactId: number) {
   const cached = queryClient.getQueryData<Task[]>(["/api/tasks"]) ?? [];
   for (const t of cached.filter((t) => t.contactId === contactId && !t.done && t.title === "Follow up on quote")) {
     await apiRequest("PATCH", `/api/tasks/${t.id}`, { done: true });
   }
-  invalidate("/api/tasks");
-}
-export async function scheduleSaleCheckins(contactId: number) {
-  await closeQuoteFollowups(contactId);
-  await createTask({ title: "Check-in after sale", contactId, dueDate: inDays(3), notes: "Make sure everything's working, answer bill questions" });
-  await createTask({ title: "Check-in after sale", contactId, dueDate: inDays(30), notes: "30-day check-in: first bill OK? Ask for a referral" });
   invalidate("/api/tasks");
 }

@@ -78,7 +78,6 @@ export default function Callbacks({ embedded = false }: { embedded?: boolean }) 
           <SelectContent>
             <SelectItem value="all">Everyone</SelectItem>
             <SelectItem value="lead">Leads only</SelectItem>
-            <SelectItem value="checkup">Check up only</SelectItem>
             <SelectItem value="closed">Closed only</SelectItem>
             <SelectItem value="lost">Lost only</SelectItem>
           </SelectContent>
